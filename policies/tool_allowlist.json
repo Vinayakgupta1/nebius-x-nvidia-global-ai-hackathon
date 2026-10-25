@@ -1,0 +1,45 @@
+{
+  "tools": {
+    "nmap": {
+      "description": "Network scanner for port/service discovery",
+      "allowed_args": ["-sV", "-sS", "-Pn", "-T4", "-6", "--script", "-oN", "-oX", "-iL", "-oG"],
+      "blocked_args": ["-A", "--top-ports", "-P0"]
+    },
+    "nikto": {
+      "description": "Web server vulnerability scanner",
+      "allowed_args": ["-h", "-port", "-Tuning", "-output", "-Format", "-Display", "-C"],
+      "blocked_args": ["-Connect", "-Proxy"]
+    },
+    "whatweb": {
+      "description": "Web technology fingerprinting tool",
+      "allowed_args": ["-v", "-a", "0", "-l", "-i", "info"],
+      "blocked_args": []
+    },
+    "gau": {
+      "description": "Generate URLs from Common Crawl",
+      "allowed_args": ["-target", "-providers", "-random", "-only-404"],
+      "blocked_args": []
+    },
+    "waybackurls": {
+      "description": "Find URLs from Wayback Machine",
+      "allowed_args": ["-origin"],
+      "blocked_args": []
+    },
+    "dirb": {
+      "description": "Web content scanner",
+      "allowed_args": ["-f", "-q", "-s", "-t", "-c"],
+      "blocked_args": []
+    },
+    "ffuf": {
+      "description": "Fast web fuzzer",
+      "allowed_args": ["-u", "-w", "-mc", "-ms", "-H", "-e", "-fc"],
+      "blocked_args": []
+    }
+  },
+  "global": {
+    "max_command_timeout": 60,
+    "max_output_size": 1048576,
+    "require_target_specification": true,
+    "sandbox_per_process": true
+  }
+}

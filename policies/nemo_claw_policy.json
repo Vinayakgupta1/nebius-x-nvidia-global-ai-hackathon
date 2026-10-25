@@ -1,0 +1,364 @@
+# HermesShield Security Policies
+
+## Policy Directory Structure
+
+```
+policies/
+├── nemo_claw_policy.json    # Syscall filtering and process isolation
+├── open_shell_policy.json   # Restricted shell access
+├── tool_allowlist.json      # Command allowlisting
+├── evidence_redaction.json  # Sensitive data patterns
+└── network_policy.json      # Network egress filtering
+```
+
+## 1. NemoClaw Policy (nemo_claw_policy.json)
+
+This policy governs syscall filtering and process isolation for Hermes Agent sandboxes.
+
+```json
+{
+  "sandbox": {
+    "read_only_paths": [
+      "/hermes_shield",
+      "/audit_data",
+      "/usr",
+      "/lib",
+      "/windows/system32"
+    ],
+    "writable_paths": [
+      "/tmp",
+      "/hermes_shield/audit_data/evidence"
+    ],
+    "allowed_syscalls": [
+      "read",
+      "write",
+      "open",
+      "close",
+      "execve",
+      "exit",
+      "exit_group",
+      "getpid",
+      "getppid"
+    ],
+    "blocked_syscalls": [
+      "ptrace",
+      "mmap",
+      "fork",
+      "clone",
+      "unshare",
+      "chmod",
+      "chown",
+      "mount",
+      "pivot_root",
+      "setuid",
+      "setgid",
+      "cap_capset"
+    ]
+  },
+  "network": {
+    "egress_policy": "deny-all with explicit allow-list",
+    "dns_allowlist": [
+      "192.168.0.0/16",
+      "10.0.0.0/8",
+      "8.8.8.8",
+      "8.8.4.4",
+      "1.1.1.1"
+    ],
+    "target_endpoints": [
+      "127.0.0.1",
+      "localhost",
+      "10.0.0.1"
+    ],
+    "blocked_ports": [
+      "443",
+      "80",
+      "22",
+      "21",
+      "3389"
+    ]
+  },
+  "credentials": {
+    "env_filter": "ALLOWED_ENV",
+    "secret_patterns": [
+      "api_key=",
+      "secret_key=",
+      "password=",
+      "token=",
+      "NEBIUS_API_KEY="
+    ],
+    "redaction_regex": "(?i)(api_key|secret_key|password|token)\\s*=\\s*['\\\"][^'\\\"]+['\\\"]"
+  }
+}
+```
+
+## 2. OpenShell Policy (open_shell_policy.json)
+
+This policy governs restricted shell access for Hermes Agent sessions.
+
+```json
+{
+  "session": {
+    "max_duration_minutes": 30,
+    "auto_terminate": true,
+    "allowed_commands": [
+      "nmap",
+      "nikto",
+      "whatweb",
+      "dirb",
+      "gau",
+      "waybackurls",
+      "ffuf",
+      "echo",
+      "cat",
+      "ls",
+      "pwd",
+      "whoami",
+      "id"
+    ],
+    "blocked_commands": [
+      "rm",
+      "mv",
+      "cp",
+      "chmod",
+      "chown",
+      "su",
+      "sudo",
+      "adduser",
+      "deluser",
+      "passwd",
+      "shell",
+      "bash",
+      "sh",
+      "script",
+      "python",
+      "perl",
+      "ruby",
+      "vi",
+      "nano",
+      "cat >",
+      ">>",
+      "<",
+      ">",
+      "|",
+      ";",
+      "&",
+      "&&",
+      "||"
+    ],
+    "env_allowlist": [
+      "PATH",
+      "HOME",
+      "TERM",
+      "NEBIUS_API_KEY",
+      "HERMES_AUDIT_ROOT",
+      "USER",
+      "USERNAME"
+    ],
+    "working_directory": "/hermes_shield/audit_data",
+    "readonly_filesystems": [
+      "/hermes_shield",
+      "/windows",
+      "/system",
+      "/programfiles"
+    ],
+    "writable_filesystems": [
+      "/tmp",
+      "/hermes_shield/audit_data/evidence"
+    ]
+  }
+}
+```
+
+## 3. Tool Allowlist (tool_allowlist.json)
+
+This policy lists all CLI tools that Hermes Agent is permitted to execute, along with their allowed arguments.
+
+```json
+{
+  "tools": {
+    "nmap": {
+      "description": "Network scanner for port/service discovery",
+      "allowed_args": [
+        "-sV",
+        "-sS",
+        "-Pn",
+        "-T4",
+        "-6",
+        "--script",
+        "-oN",
+        "-oX",
+        "-iL",
+        "-oG"
+      ],
+      "blocked_args": [
+        "-A",
+        "--top-ports",
+        "-P0"
+      ]
+    },
+    "nikto": {
+      "description": "Web server vulnerability scanner",
+      "allowed_args": [
+        "-h",
+        "-port",
+        "-Tuning",
+        "-output",
+        "-Format",
+        "-Display",
+        "-C"
+      ],
+      "blocked_args": [
+        "-Connect",
+        "-Proxy"
+      ]
+    },
+    "whatweb": {
+      "description": "Web technology fingerprinting tool",
+      "allowed_args": [
+        "-v",
+        "-a",
+        "0",
+        "-l",
+        "-i",
+        "info"
+      ],
+      "blocked_args": []
+    },
+    "gau": {
+      "description": "Generate URLs from Common Crawl",
+      "allowed_args": [
+        "-target",
+        "-providers",
+        "-random",
+        "-only-404"
+      ],
+      "blocked_args": []
+    },
+    "waybackurls": {
+      "description": "Find URLs from Wayback Machine",
+      "allowed_args": [
+        "-origin"
+      ],
+      "blocked_args": []
+    },
+    "dirb": {
+      "description": "Web content scanner",
+      "allowed_args": [
+        "-f",
+        "-q",
+        "-s",
+        "-t",
+        "-c"
+      ],
+      "blocked_args": []
+    },
+    "ffuf": {
+      "description": "Fast web fuzzer",
+      "allowed_args": [
+        "-u",
+        "-w",
+        "-mc",
+        "-ms",
+        "-H",
+        "-e",
+        "-fc"
+      ],
+      "blocked_args": []
+    }
+  },
+  "global": {
+    "max_command_timeout": 60,
+    "max_output_size": 1048576,
+    "require_target_specification": true,
+    "sandbox_per_process": true
+  }
+}
+```
+
+## 4. Evidence Redaction (evidence_redaction.json)
+
+This policy defines regex patterns for redacting sensitive data from evidence before persistence.
+
+```json
+{
+  "patterns": [
+    {
+      "name": "api_key_pattern",
+      "regex": "(?i)(api_key|apikey|apikey)\\s*=[\\s]*['\\\"][^'\\\"]+['\\\"]",
+      "replacement": "api_key=****",
+      "apply_to": ["stdout", "stderr", "command"]
+    },
+    {
+      "name": "password_pattern",
+      "regex": "(?i)(password|passwd|pwd)\\s*=[\\s]*['\\\"][^'\\\"]+['\\\"]",
+      "replacement": "password=****",
+      "apply_to": ["stdout", "stderr", "command"]
+    },
+    {
+      "name": "credit_card_pattern",
+      "regex": "(?:\\d[ -]*){13,16}",
+      "replacement": "****CENSORED****",
+      "apply_to": ["stdout", "stderr"]
+    },
+    {
+      "name": "bearer_token_pattern",
+      "regex": "(?i)(authorization|auth)\\s*:\\s*['\\\"]?Bearer\\s+['\\\"][^'\\\"]+['\\\"]",
+      "replacement": "Authorization: Bearer ****",
+      "apply_to": ["stdout", "stderr"]
+    },
+    {
+      "name": "generic_secret_pattern",
+      "regex": "(?i)(secret[_-]?key|secretkey)\\s*=[\\s]*['\\\"][^'\\\"]+['\\\"]",
+      "replacement": "secret_key=****",
+      "apply_to": ["stdout", "stderr", "command"]
+    }
+  ],
+  "global": {
+    "redact_before_persistence": true,
+    "redact_before_reporting": true,
+    "retain_redaction_log": true,
+    "minimum_redaction_score": 0.8
+  }
+}
+```
+
+## 5. Network Policy (network_policy.json)
+
+This policy governs network egress filtering for Hermes Agent sandboxes.
+
+```json
+{
+  "egress_policy": {
+    "default_action": "drop",
+    "allow_list": {
+      "dns": [
+        "192.168.0.0/16",
+        "10.0.0.0/8",
+        "8.8.8.8",
+        "8.8.4.4",
+        "1.1.1.1"
+      ],
+      "http_endpoints": [
+        "127.0.0.1",
+        "localhost",
+        "10.0.0.1"
+      ],
+      "allowed_hosts": []
+    },
+    "rate_limiting": {
+      "max_connections_per_minute": 30,
+      "max_connections_per_hour": 100
+    }
+  },
+  "inbound_policy": {
+    "default_action": "drop",
+    "allowed_ports": [],
+    "allowed_protocols": []
+  },
+  "traffic_monitoring": {
+    "log_all_connections": true,
+    "anomaly_detection": true,
+    "threshold_for_alert": 5
+  }
+}
+```

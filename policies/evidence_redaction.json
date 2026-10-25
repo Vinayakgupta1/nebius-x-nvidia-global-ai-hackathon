@@ -1,0 +1,40 @@
+{
+  "patterns": [
+    {
+      "name": "api_key_pattern",
+      "regex": "(?i)(api_key|apikey|apikey)\\s*=[\\s]*['\\\"][^'\\\"]+['\\\"]",
+      "replacement": "api_key=****",
+      "apply_to": ["stdout", "stderr", "command"]
+    },
+    {
+      "name": "password_pattern",
+      "regex": "(?i)(password|passwd|pwd)\\s*=[\\s]*['\\\"][^'\\\"]+['\\\"]",
+      "replacement": "password=****",
+      "apply_to": ["stdout", "stderr", "command"]
+    },
+    {
+      "name": "credit_card_pattern",
+      "regex": "(?:\\d[ -]*){13,16}",
+      "replacement": "****CENSORED****",
+      "apply_to": ["stdout", "stderr"]
+    },
+    {
+      "name": "bearer_token_pattern",
+      "regex": "(?i)(authorization|auth)\\s*:\\s*['\\\"]?Bearer\\s+['\\\"][^'\\\"]+['\\\"]",
+      "replacement": "Authorization: Bearer ****",
+      "apply_to": ["stdout", "stderr"]
+    },
+    {
+      "name": "generic_secret_pattern",
+      "regex": "(?i)(secret[_-]?key|secretkey)\\s*=[\\s]*['\\\"][^'\\\"]+['\\\"]",
+      "replacement": "secret_key=****",
+      "apply_to": ["stdout", "stderr", "command"]
+    }
+  ],
+  "global": {
+    "redact_before_persistence": true,
+    "redact_before_reporting": true,
+    "retain_redaction_log": true,
+    "minimum_redaction_score": 0.8
+  }
+}

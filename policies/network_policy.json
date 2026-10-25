@@ -1,0 +1,24 @@
+{
+  "egress_policy": {
+    "default_action": "drop",
+    "allow_list": {
+      "dns": ["192.168.0.0/16", "10.0.0.0/8", "8.8.8.8", "8.8.4.4", "1.1.1.1"],
+      "http_endpoints": ["127.0.0.1", "localhost", "10.0.0.1"],
+      "allowed_hosts": []
+    },
+    "rate_limiting": {
+      "max_connections_per_minute": 30,
+      "max_connections_per_hour": 100
+    }
+  },
+  "inbound_policy": {
+    "default_action": "drop",
+    "allowed_ports": [],
+    "allowed_protocols": []
+  },
+  "traffic_monitoring": {
+    "log_all_connections": true,
+    "anomaly_detection": true,
+    "threshold_for_alert": 5
+  }
+}

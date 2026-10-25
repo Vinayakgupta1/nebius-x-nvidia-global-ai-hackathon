@@ -1,0 +1,449 @@
+{
+  "benchmark_version": "1.0.0",
+  "description": "Synthetic security laboratory with known vulnerabilities for HermesShield benchmarking",
+  "lab_environment": {
+    "base_image": "alpine:3.20",
+    "network_mode": "bridge",
+    "description": "Synthetic lab with multiple vulnerable services and configurations"
+  },
+  "vulnerabilities": [
+    {
+      "vuln_id": "BENCH-001",
+      "name": "Hardcoded SSH Private Key",
+      "category": "SECRET_EXPOSURE",
+      "severity": "CRITICAL",
+      "description": "SSH private key hardcoded in configuration file",
+      "location": "/etc/ssh/sshd_config",
+      "expected_discovery": {
+        "tool": "secret_detection",
+        "pattern": "-----BEGIN (RSA|EC|OPEN) PRIVATE KEY-----",
+        "confidence_threshold": 0.9
+      },
+      "evidence": {
+        "type": "file_content",
+        "content_sample": "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA...\n-----END RSA PRIVATE KEY-----",
+        "file_path": "/etc/ssh/sshd_config"
+      },
+      "validation_method": "regex_match",
+      "validation_regex": "-----BEGIN (RSA|EC|OPEN) PRIVATE KEY-----",
+      "expected_remediation": "Remove private key from config file; use SSH key agent or secure key management",
+      "attack_path_relationships": [
+        {
+          "target_vuln_id": "BENCH-002",
+          "relationship": "ENABLES",
+          "description": "Private key enables SSH access for lateral movement"
+        }
+      ],
+      "cve_references": [],
+      "cvss_score": 9.8,
+      "tags": ["secret", "ssh", "credential", "hardcoded"]
+    },
+    {
+      "vuln_id": "BENCH-002",
+      "name": "Open SSH Port with Weak Configuration",
+      "category": "MISCONFIGURATION",
+      "severity": "HIGH",
+      "description": "SSH service running with password authentication enabled and root login permitted",
+      "location": "/etc/ssh/sshd_config",
+      "expected_discovery": {
+        "tool": "configuration_auditing",
+        "checks": [
+          "PermitRootLogin yes",
+          "PasswordAuthentication yes",
+          "PermitEmptyPasswords yes"
+        ],
+        "confidence_threshold": 0.85
+      },
+      "evidence": {
+        "type": "config_analysis",
+        "findings": [
+          "PermitRootLogin yes",
+          "PasswordAuthentication yes",
+          "PermitEmptyPasswords yes",
+          "MaxAuthTries 6"
+        ]
+      },
+      "validation_method": "config_file_analysis",
+      "expected_remediation": "Disable root login, disable password authentication, enforce key-based auth",
+      "attack_path_relationships": [
+        {
+          "target_vuln_id": "BENCH-001",
+          "relationship": "ENABLED_BY",
+          "description": "Weak SSH config allows exploitation of exposed private key"
+        },
+        {
+          "target_vuln_id": "BENCH-003",
+          "relationship": "ENABLES",
+          "description": "SSH access enables lateral movement to internal services"
+        }
+      ],
+      "cve_references": [],
+      "cvss_score": 7.5,
+      "tags": ["ssh", "misconfiguration", "authentication", "remote_access"]
+    },
+    {
+      "vuln_id": "BENCH-003",
+      "name": "Exposed Internal HTTP API",
+      "category": "EXPOSURE",
+      "severity": "HIGH",
+      "description": "Internal administrative HTTP API exposed on port 8080 without authentication",
+      "location": "localhost:8080",
+      "expected_discovery": {
+        "tool": "network_reconnaissance",
+        "port": 8080,
+        "service_identification": "HTTP",
+        "confidence_threshold": 0.9
+      },
+      "evidence": {
+        "type": "service_discovery",
+        "port": 8080,
+        "protocol": "tcp",
+        "service": "http",
+        "banner": "HTTP/1.1 200 OK\nServer: Werkzeug/2.3.7 Python/3.11.9\nContent-Type: application/json\n\n{\"status\": \"admin\", \"endpoints\": [\"/users\", \"/config\", \"/logs\"]}"
+      },
+      "validation_method": "http_endpoint_test",
+      "validation_endpoints": [
+        "/users",
+        "/config",
+        "/logs"
+      ],
+      "expected_remediation": "Bind admin API to localhost only; implement authentication and authorization",
+      "attack_path_relationships": [
+        {
+          "target_vuln_id": "BENCH-002",
+          "relationship": "ENABLED_BY",
+          "description": "SSH access provides network access to internal API"
+        },
+        {
+          "target_vuln_id": "BENCH-004",
+          "relationship": "ENABLES",
+          "description": "Admin API allows configuration changes and data exfiltration"
+        }
+      ],
+      "cve_references": [],
+      "cvss_score": 8.1,
+      "tags": ["http", "api", "exposure", "admin", "unauthenticated"]
+    },
+    {
+      "vuln_id": "BENCH-004",
+      "name": "Sensitive Data in World-Readable File",
+      "category": "DATA_EXPOSURE",
+      "severity": "MEDIUM",
+      "description": "Database credentials stored in world-readable configuration file",
+      "location": "/app/config/database.yml",
+      "expected_discovery": {
+        "tool": "secret_detection",
+        "pattern": "(password|passwd|pwd)\\s*[:=]\\s*['\"][^'\"]+['\"]",
+        "confidence_threshold": 0.85
+      },
+      "evidence": {
+        "type": "file_content",
+        "content_sample": "database:\n  host: localhost\n  port: 5432\n  username: admin\n  password: \"SuperSecretPass123!\"\n  database: production",
+        "file_path": "/app/config/database.yml",
+        "permissions": "rw-r--r--"
+      },
+      "validation_method": "file_permission_check",
+      "expected_remediation": "Restrict file permissions (chmod 600); use environment variables or secret manager",
+      "attack_path_relationships": [
+        {
+          "target_vuln_id": "BENCH-003",
+          "relationship": "ENABLED_BY",
+          "description": "Admin API access allows reading config files"
+        },
+        {
+          "target_vuln_id": "BENCH-005",
+          "relationship": "ENABLES",
+          "description": "Database credentials enable direct database access"
+        }
+      ],
+      "cve_references": [],
+      "cvss_score": 6.5,
+      "tags": ["credential", "file_permission", "database", "config"]
+    },
+    {
+      "vuln_id": "BENCH-005",
+      "name": "PostgreSQL with Default Credentials",
+      "category": "DEFAULT_CREDENTIALS",
+      "severity": "CRITICAL",
+      "description": "PostgreSQL database running with default postgres/postgres credentials",
+      "location": "localhost:5432",
+      "expected_discovery": {
+        "tool": "service_enumeration",
+        "port": 5432,
+        "service": "postgresql",
+        "credential_test": "postgres:postgres",
+        "confidence_threshold": 0.95
+      },
+      "evidence": {
+        "type": "service_banner",
+        "port": 5432,
+        "protocol": "tcp",
+        "service": "postgresql",
+        "version": "PostgreSQL 16.3",
+        "auth_method": "md5",
+        "default_credentials": ["postgres:postgres", "admin:admin", "user:password"]
+      },
+      "validation_method": "credential_test",
+      "validation_credentials": [
+        "postgres:postgres",
+        "admin:admin"
+      ],
+      "expected_remediation": "Change default credentials; enforce strong passwords; restrict network access",
+      "attack_path_relationships": [
+        {
+          "target_vuln_id": "BENCH-004",
+          "relationship": "ENABLED_BY",
+          "description": "Database credentials from config file enable access"
+        },
+        {
+          "target_vuln_id": "BENCH-006",
+          "relationship": "ENABLES",
+          "description": "Database access allows data exfiltration and privilege escalation"
+        }
+      ],
+      "cve_references": [],
+      "cvss_score": 9.8,
+      "tags": ["postgresql", "database", "default_credentials", "authentication"]
+    },
+    {
+      "vuln_id": "BENCH-006",
+      "name": "Sudo with NOPASSWD for www-data User",
+      "category": "PRIVILEGE_ESCALATION",
+      "severity": "CRITICAL",
+      "description": "Web server user (www-data) has passwordless sudo access to all commands",
+      "location": "/etc/sudoers.d/www-data",
+      "expected_discovery": {
+        "tool": "configuration_auditing",
+        "checks": [
+          "www-data ALL=(ALL) NOPASSWD: ALL",
+          "sudoers file permissions"
+        ],
+        "confidence_threshold": 0.95
+      },
+      "evidence": {
+        "type": "file_content",
+        "content_sample": "www-data ALL=(ALL) NOPASSWD: ALL",
+        "file_path": "/etc/sudoers.d/www-data",
+        "permissions": "rw-r--r--"
+      },
+      "validation_method": "sudoers_analysis",
+      "expected_remediation": "Remove NOPASSWD; restrict sudo to specific commands; use dedicated service accounts",
+      "attack_path_relationships": [
+        {
+          "target_vuln_id": "BENCH-005",
+          "relationship": "ENABLED_BY",
+          "description": "Database compromise leads to web shell, then sudo escalation"
+        },
+        {
+          "target_vuln_id": "BENCH-007",
+          "relationship": "ENABLES",
+          "description": "Root access enables complete system compromise"
+        }
+      ],
+      "cve_references": [],
+      "cvss_score": 9.8,
+      "tags": ["sudo", "privilege_escalation", "www-data", "nopasswd"]
+    },
+    {
+      "vuln_id": "BENCH-007",
+      "name": "Cron Job with World-Writable Script",
+      "category": "PRIVILEGE_ESCALATION",
+      "severity": "HIGH",
+      "description": "Root cron job executes a world-writable script allowing privilege escalation",
+      "location": "/etc/cron.d/backup",
+      "expected_discovery": {
+        "tool": "configuration_auditing",
+        "checks": [
+          "cron job running as root",
+          "script path world-writable",
+          "script owned by non-root user"
+        ],
+        "confidence_threshold": 0.9
+      },
+      "evidence": {
+        "type": "file_content",
+        "content_sample": "0 * * * * root /opt/scripts/backup.sh",
+        "script_path": "/opt/scripts/backup.sh",
+        "script_permissions": "rwxrwxrwx",
+        "script_owner": "www-data"
+      },
+      "validation_method": "cron_analysis",
+      "expected_remediation": "Restrict script permissions; use absolute paths; run cron jobs with least privilege",
+      "attack_path_relationships": [
+        {
+          "target_vuln_id": "BENCH-006",
+          "relationship": "ENABLED_BY",
+          "description": "Sudo access allows writing to world-writable script"
+        }
+      ],
+      "cve_references": [],
+      "cvss_score": 8.8,
+      "tags": ["cron", "privilege_escalation", "world_writable", "root"]
+    },
+    {
+      "vuln_id": "BENCH-008",
+      "name": "SMB Share with Anonymous Access",
+      "category": "EXPOSURE",
+      "severity": "HIGH",
+      "description": "SMB file share accessible without authentication exposing sensitive files",
+      "location": "localhost:445",
+      "expected_discovery": {
+        "tool": "network_reconnaissance",
+        "port": 445,
+        "service": "smb",
+        "confidence_threshold": 0.9
+      },
+      "evidence": {
+        "type": "service_discovery",
+        "port": 445,
+        "protocol": "tcp",
+        "service": "smb",
+        "shares": [
+          {"name": "public", "access": "read", "anonymous": true},
+          {"name": "backup", "access": "read", "anonymous": true}
+        ]
+      },
+      "validation_method": "smb_enum",
+      "expected_remediation": "Disable anonymous access; implement authentication; restrict share permissions",
+      "attack_path_relationships": [
+        {
+          "target_vuln_id": "BENCH-004",
+          "relationship": "ENABLES",
+          "description": "SMB share exposes config files with credentials"
+        }
+      ],
+      "cve_references": [],
+      "cvss_score": 7.5,
+      "tags": ["smb", "anonymous", "file_share", "network"]
+    },
+    {
+      "vuln_id": "BENCH-009",
+      "name": "Weak SSL/TLS Configuration",
+      "category": "CRYPTOGRAPHIC",
+      "severity": "MEDIUM",
+      "description": "Web server supports deprecated TLS 1.0/1.1 and weak cipher suites",
+      "location": "localhost:443",
+      "expected_discovery": {
+        "tool": "service_enumeration",
+        "port": 443,
+        "tls_checks": [
+          "TLS 1.0 supported",
+          "TLS 1.1 supported",
+          "Weak ciphers (RC4, DES, 3DES)",
+          "Certificate self-signed"
+        ],
+        "confidence_threshold": 0.85
+      },
+      "evidence": {
+        "type": "tls_scan",
+        "port": 443,
+        "supported_protocols": ["TLS 1.0", "TLS 1.1", "TLS 1.2", "TLS 1.3"],
+        "weak_ciphers": ["TLS_RSA_WITH_RC4_128_SHA", "TLS_RSA_WITH_3DES_EDE_CBC_SHA"],
+        "certificate": "self-signed"
+      },
+      "validation_method": "tls_scan",
+      "expected_remediation": "Disable TLS 1.0/1.1; disable weak ciphers; use valid certificate",
+      "attack_path_relationships": [],
+      "cve_references": ["CVE-2016-2183", "CVE-2013-2566"],
+      "cvss_score": 5.9,
+      "tags": ["tls", "ssl", "cipher", "protocol", "cryptographic"]
+    },
+    {
+      "vuln_id": "BENCH-010",
+      "name": "Docker Socket Exposed to Container",
+      "category": "CONTAINER_ESCAPE",
+      "severity": "CRITICAL",
+      "description": "Docker socket (/var/run/docker.sock) mounted into container allowing container escape",
+      "location": "/var/run/docker.sock",
+      "expected_discovery": {
+        "tool": "configuration_auditing",
+        "checks": [
+          "docker.sock mounted",
+          "container in docker group",
+          "docker socket writable"
+        ],
+        "confidence_threshold": 0.95
+      },
+      "evidence": {
+        "type": "file_check",
+        "path": "/var/run/docker.sock",
+        "permissions": "srw-rw-rw-",
+        "owner": "root",
+        "group": "docker"
+      },
+      "validation_method": "docker_socket_check",
+      "expected_remediation": "Do not mount docker socket; use Docker API with restricted permissions",
+      "attack_path_relationships": [
+        {
+          "target_vuln_id": "BENCH-007",
+          "relationship": "ENABLED_BY",
+          "description": "Root access via cron allows docker socket access"
+        }
+      ],
+      "cve_references": [],
+      "cvss_score": 9.8,
+      "tags": ["docker", "container_escape", "socket", "privilege_escalation"]
+    }
+  ],
+  "attack_paths": [
+    {
+      "path_id": "AP-001",
+      "name": "Full Chain: SSH Key -> SSH Access -> Admin API -> Database -> Sudo -> Root",
+      "description": "Complete attack chain from initial access to root compromise",
+      "steps": [
+        "BENCH-001",
+        "BENCH-002",
+        "BENCH-003",
+        "BENCH-004",
+        "BENCH-005",
+        "BENCH-006",
+        "BENCH-007"
+      ],
+      "initial_access": "BENCH-001",
+      "final_impact": "Full system compromise (root)",
+      "cvss_score": 9.8,
+      "mitre_techniques": [
+        "T1078.004",
+        "T1021.004",
+        "T1505.003",
+        "T1552.001",
+        "T1068",
+        "T1543.003"
+      ]
+    },
+    {
+      "path_id": "AP-002",
+      "name": "Network Path: SMB -> Config Files -> Database",
+      "description": "Anonymous SMB access leads to credential exposure and database compromise",
+      "steps": [
+        "BENCH-008",
+        "BENCH-004",
+        "BENCH-005"
+      ],
+      "initial_access": "BENCH-008",
+      "final_impact": "Database compromise",
+      "cvss_score": 8.1,
+      "mitre_techniques": [
+        "T1021.002",
+        "T1552.001",
+        "T1555"
+      ]
+    },
+    {
+      "path_id": "AP-003",
+      "name": "Container Escape Path: Root Cron -> Docker Socket",
+      "description": "Privilege escalation via cron leads to container escape via Docker socket",
+      "steps": [
+        "BENCH-007",
+        "BENCH-010"
+      ],
+      "initial_access": "BENCH-007",
+      "final_impact": "Container escape / host compromise",
+      "cvss_score": 9.8,
+      "mitre_techniques": [
+        "T1543.003",
+        "T1611"
+      ]
+    }
+  ]
+}
