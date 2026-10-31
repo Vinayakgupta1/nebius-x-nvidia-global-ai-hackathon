@@ -1,22 +1,17 @@
 {
-  "builds": {
-    "default": "echo 'Vercel deployment'"
-  },
+  "builds": [
+    {
+      "src": "/(.*)",
+      "use": {
+        "runtime": "static",
+        "platform": "html"
+      }
+    }
+  ],
   "routes": [
     {
       "src": "/(.*)",
       "dest": "/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0"
-        }
-      ]
     }
   ]
 }
